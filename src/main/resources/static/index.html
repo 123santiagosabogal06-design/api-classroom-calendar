@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Classroom a Calendar</title>
+<style>
+  :root {
+    --ink: #16233b; --muted: #5b6880; --paper: #f4f6fa; --panel: #ffffff; --line: #d9dfea;
+    --accent: #2457d6; --accent-ink: #ffffff; --ok: #1e7f5c; --ok-bg: #e8f5ef; --err: #b42318; --err-bg: #fdecea;
+    color-scheme: light dark;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --ink: #e9eefb; --muted: #9fb0cd; --paper: #0e1626; --panel: #16213a; --line: #2a3858;
+      --accent: #7aa2ff; --accent-ink: #0b1430; --ok: #59d3a0; --ok-bg: #12302a; --err: #ff9d94; --err-bg: #3b1a1a;
+    }
+  }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  body { margin: 0; background: var(--paper); color: var(--ink);
+         font: 16px/1.55 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  .pagina { max-width: 640px; margin: 0 auto; padding: 56px 20px 40px; }
+
+  .marca { display: flex; align-items: center; gap: 10px; margin: 0 0 28px; font-weight: 600; color: var(--muted); }
+  .marca svg { width: 28px; height: 28px; flex: none; }
+  h1 { margin: 0 0 14px; font: 600 clamp(28px, 6vw, 38px)/1.15 Georgia, "Iowan Old Style", "Palatino Linotype", serif;
+       letter-spacing: -0.01em; }
+  h2 { margin: 0 0 6px; font: 600 22px/1.25 Georgia, "Iowan Old Style", "Palatino Linotype", serif; }
+  .lead { margin: 0 0 28px; max-width: 56ch; color: var(--muted); }
+
+  .aviso { margin: 0 0 20px; padding: 12px 16px; border-radius: 8px; font-weight: 500; }
+  .aviso.ok { background: var(--ok-bg); color: var(--ok); }
+  .aviso.err { background: var(--err-bg); color: var(--err); }
+
+  .btn { display: inline-flex; align-items: center; justify-content: center; padding: 0.7rem 1.15rem; border-radius: 8px;
+         border: 1px solid transparent; font: 600 1rem/1.2 inherit; text-decoration: none; cursor: pointer; }
+  .btn.primario { background: var(--accent); color: var(--accent-ink); }
+  .btn.primario:hover { filter: brightness(1.08); }
+  .btn.borde { background: transparent; color: var(--ink); border-color: var(--line); }
+  .btn.borde:hover { border-color: var(--muted); }
+  .btn.peligro { background: transparent; color: var(--err); padding-left: 0.4rem; padding-right: 0.4rem; }
+  .btn.peligro:hover { text-decoration: underline; }
+  .btn[disabled] { opacity: 0.7; cursor: progress; }
+  .btn.cargando::before { content: ""; width: 14px; height: 14px; margin-right: 9px; border: 2px solid currentColor;
+                          border-right-color: transparent; border-radius: 50%; animation: giro 0.7s linear infinite; }
+  @keyframes giro { to { transform: rotate(360deg); } }
+  @media (prefers-reduced-motion: reduce) { .btn.cargando::before { animation-duration: 2.5s; } }
+  :focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+
+  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 22px; }
+  .estado { display: flex; align-items: center; gap: 10px; font-weight: 600; overflow-wrap: anywhere; }
+  .punto { width: 10px; height: 10px; border-radius: 50%; background: var(--ok); flex: none; }
+  .nota { margin: 6px 0 18px 20px; color: var(--muted); font-size: 15px; }
+  .acciones { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+
+  #resultado { margin-top: 36px; }
+  .resumen { margin: 0 0 16px; color: var(--muted); }
+  .libro { margin: 0; }
+  .fila { display: grid; grid-template-columns: 1fr auto; gap: 16px; align-items: center; padding: 12px 0;
+          border-top: 1px solid var(--line); }
+  .fila:last-child { border-bottom: 1px solid var(--line); }
+  .fila dt { font-weight: 600; }
+  .fila dt small { display: block; font-weight: 400; font-size: 14px; color: var(--muted); }
+  .fila dd { margin: 0; font: 600 28px/1 Georgia, "Iowan Old Style", serif; font-variant-numeric: tabular-nums; }
+  .fila.cero { opacity: 0.5; }
+  .fila.destacada dd { color: var(--ok); }
+  .hora { margin: 12px 0 0; font-size: 14px; color: var(--muted); }
+
+  .pie { margin-top: 44px; max-width: 60ch; font-size: 14px; color: var(--muted); }
+</style>
+</head>
+<body>
+<main class="pagina">
+  <p class="marca">
+    <svg viewBox="0 0 28 28" aria-hidden="true">
+      <rect x="2" y="4" width="24" height="22" rx="5" fill="var(--accent)"/>
+      <rect x="2" y="4" width="24" height="7" rx="3" fill="var(--ink)" opacity="0.28"/>
+      <path d="M9 17.5l3.5 3.5L19.5 14" fill="none" stroke="var(--accent-ink)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+    Classroom a Calendar
+  </p>
+
+  <h1>Tus tareas de Classroom, en tu calendario.</h1>
+
+  <div id="aviso" class="aviso" role="status" hidden></div>
+  <p id="cargando" class="lead">Cargando…</p>
+
+  <section id="anonima" hidden>
+    <p class="lead">Inicia sesión una sola vez. La aplicación crea un evento por cada tarea con fecha de entrega, te recuerda por correo y por notificación, y quita las tareas que ya entregaste.</p>
+    <a class="btn primario" href="/login">Iniciar sesión con Google</a>
+  </section>
+
+  <section id="sesion" class="panel" hidden>
+    <div class="estado"><span class="punto" aria-hidden="true"></span><span id="correo"></span></div>
+    <p class="nota">Tus tareas se sincronizan solas. También puedes hacerlo ahora.</p>
+    <div class="acciones">
+      <button id="btn-sync" class="btn primario" type="button">Sincronizar ahora</button>
+      <button id="btn-salir" class="btn borde" type="button">Cerrar sesión</button>
+      <button id="btn-desconectar" class="btn peligro" type="button">Desconectar mi cuenta</button>
+    </div>
+  </section>
+
+  <section id="resultado" aria-live="polite" hidden>
+    <h2>Resultado de la sincronización</h2>
+    <p id="resumen" class="resumen"></p>
+    <dl id="libro" class="libro"></dl>
+    <p id="hora" class="hora"></p>
+  </section>
+
+  <p class="pie">Esta aplicación pide permiso para leer tus cursos y tareas de Classroom y para crear eventos en tu Google Calendar. Nunca ve tu contraseña y puedes retirar el acceso cuando quieras.</p>
+</main>
+
+<script>
+  const $ = id => document.getElementById(id);
+
+  const FILAS = [
+    ['creados', 'Creados', 'Eventos nuevos en tu calendario'],
+    ['actualizados', 'Actualizados', 'Cambiaron de título u hora'],
+    ['borrados', 'Borrados', 'Tareas entregadas o que ya no existen'],
+    ['sinCambios', 'Sin cambios', 'Ya estaban en tu calendario y siguen iguales'],
+    ['vencidas', 'Vencidas', 'Su fecha ya pasó, por eso no se agendan'],
+    ['entregadas', 'Entregadas', 'Ya las entregaste y no tenían evento']
+  ];
+
+  function aviso(tipo, texto) {
+    const a = $('aviso');
+    a.className = 'aviso ' + tipo;
+    a.textContent = texto;
+    a.hidden = false;
+  }
+
+  // Mensajes que llegan en la dirección (?ok=1 o ?error=...), y se limpia la barra de direcciones.
+  const params = new URLSearchParams(location.search);
+  if (params.get('ok')) aviso('ok', 'Tu cuenta quedó conectada. No tendrás que volver a aceptar permisos.');
+  if (params.get('error')) aviso('err', params.get('error'));
+  if (params.toString()) history.replaceState(null, '', location.pathname);
+
+  function pintarResultado(d) {
+    const num = k => Number(d[k] ?? 0);
+    const cambios = num('creados') + num('actualizados') + num('borrados');
+    $('resumen').textContent = cambios === 0
+      ? 'Tu calendario ya estaba al día: no hubo cambios.'
+      : 'Cambios en tu calendario: ' + num('creados') + ' creados, ' + num('actualizados') +
+        ' actualizados y ' + num('borrados') + ' borrados.';
+
+    const libro = $('libro');
+    libro.replaceChildren();
+    const filas = [['tareasEncontradas', 'Tareas encontradas', 'Las que entregaron tus plataformas']].concat(FILAS);
+    for (const [clave, titulo, ayuda] of filas) {
+      const valor = num(clave);
+      const fila = document.createElement('div');
+      fila.className = 'fila' + (valor === 0 ? ' cero' : '') + (clave === 'creados' && valor > 0 ? ' destacada' : '');
+      const dt = document.createElement('dt');
+      dt.textContent = titulo;
+      const small = document.createElement('small');
+      small.textContent = ayuda;
+      dt.appendChild(small);
+      const dd = document.createElement('dd');
+      dd.textContent = valor;
+      fila.append(dt, dd);
+      libro.appendChild(fila);
+    }
+    $('hora').textContent = 'Última sincronización a las ' +
+      new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) + '.';
+    $('resultado').hidden = false;
+  }
+
+  async function sincronizar() {
+    const btn = $('btn-sync');
+    btn.disabled = true;
+    btn.classList.add('cargando');
+    btn.textContent = 'Sincronizando';
+    try {
+      const r = await fetch('/api/sync');
+      if (r.status === 401) { location.href = '/'; return; }
+      const datos = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(datos.error || 'No se pudo sincronizar. Intenta de nuevo en unos minutos.');
+      $('aviso').hidden = true;
+      pintarResultado(datos);
+    } catch (e) {
+      aviso('err', e.message);
+    } finally {
+      btn.disabled = false;
+      btn.classList.remove('cargando');
+      btn.textContent = 'Sincronizar ahora';
+    }
+  }
+
+  async function cargar() {
+    try {
+      const r = await fetch('/api/me');
+      $('cargando').hidden = true;
+      if (r.ok) {
+        const { email } = await r.json();
+        $('correo').textContent = 'Conectado como ' + email;
+        $('sesion').hidden = false;
+        $('btn-sync').addEventListener('click', sincronizar);
+        $('btn-salir').addEventListener('click', () => { location.href = '/logout'; });
+        $('btn-desconectar').addEventListener('click', async () => {
+          if (confirm('Se borrarán tus permisos guardados y dejará de sincronizarse. ¿Continuar?')) {
+            await fetch('/api/disconnect', { method: 'POST' });
+            location.href = '/';
+          }
+        });
+      } else {
+        $('anonima').hidden = false;
+      }
+    } catch (e) {
+      $('cargando').hidden = true;
+      aviso('err', 'No se pudo conectar con el servidor. Revisa que la aplicación esté corriendo.');
+    }
+  }
+  cargar();
+</script>
+</body>
+</html>
